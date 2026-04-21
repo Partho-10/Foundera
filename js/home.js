@@ -168,8 +168,6 @@ function completeGoogleSignUp(role) {
     }).catch(function () { closeRoleModal(); showToast('Failed to save data. Please check database rules.', 'error'); });
 }
 
-
-
 /* --- TOAST NOTIFICATIONS --- */
 function showToast(message, type) {
     type = type || 'info';
@@ -266,6 +264,7 @@ function handleLogout() {
     localStorage.removeItem('investorName');
     localStorage.removeItem('investorEmail');
     localStorage.removeItem('pendingSignup');
+    localStorage.removeItem('currentOTP');
     navigateTo('home');
 }
 
@@ -321,13 +320,12 @@ function completeLoginRoleSelection(name, email, role) {
         showToast('Welcome, ' + name + '!', 'success');
         redirectToDashboard(name, email, role);
     }).catch(function() {
-        // Even if DB save fails, redirect the user
         state.currentUser = { name: name, email: email, role: role };
         redirectToDashboard(name, email, role);
     });
 }
 
-/* --- ROLE LOOKUP HELPER (checks each folder individually) --- */
+/* --- ROLE LOOKUP HELPER --- */
 function lookupUserRole(email) {
     if (typeof firebase === 'undefined' || !firebase.database) return Promise.resolve(null);
     var db = firebase.database();
@@ -347,8 +345,39 @@ function lookupUserRole(email) {
     });
 }
 
-/* --- EMAIL VERIFICATION SCREEN --- */
-var verificationPollTimer = null;
+/* --- OTP EMAIL VERIFICATION --- */
+function generateAndSendOTP(email) {
+    // Generate a random 6-digit code
+    var otp = Math.floor(100000 + Math.random() * 900000).toString();
+    localStorage.setItem('currentOTP', otp);
+
+    // EmailJS er maddhome ashol email pathano
+    if (typeof emailjs !== 'undefined') {
+        
+        var serviceID = 'service_w6km8fi';   
+        var templateID = 'template_j9jkke8';   
+        var publicKey = 'pt1nWPB5tv9JSX76w';
+
+        var templateParams = {
+            to_email: email, // User er email jekhane OTP jabe
+            otp_code: otp    // 6-digit OTP code
+        };
+
+        emailjs.send(serviceID, templateID, templateParams, publicKey)
+            .then(function(response) {
+                console.log('OTP Email Sent Successfully!', response.status, response.text);
+            }, function(error) {
+                console.error('Failed to send OTP Email...', error);
+            });
+    } else {
+        console.error("EmailJS script is missing in index.html");
+    }
+
+    // Testing er shubidhar jonno browser console e OTP log kora holo (Pop-up baad deya hoyeche)
+    console.log('Secret OTP for testing: ' + otp);
+
+    return otp;
+}
 
 function showVerificationScreen(user, name, email, role) {
     state.currentScreen = 'verify';
@@ -364,19 +393,23 @@ function showVerificationScreen(user, name, email, role) {
                     '<svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>' +
                 '</div>' +
                 '<h2 class="text-3xl font-bold text-white mb-3">Verify Your Email</h2>' +
-                '<p class="text-gray-400 mb-2">We\'ve sent a verification link to:</p>' +
+                '<p class="text-gray-400 mb-2">We\'ve sent a 6-digit code to:</p>' +
                 '<p class="text-purple-400 font-semibold text-lg mb-6">' + email + '</p>' +
-                '<div class="bg-white/5 border border-white/10 rounded-xl p-4 mb-6">' +
-                    '<div class="flex items-center gap-3 text-left">' +
-                        '<div id="verify-spinner" class="w-8 h-8 border-3 border-purple-500/30 border-t-purple-500 rounded-full animate-spin flex-shrink-0"></div>' +
-                        '<div>' +
-                            '<p id="verify-status-text" class="text-white font-medium text-sm">Waiting for verification...</p>' +
-                            '<p class="text-gray-500 text-xs mt-0.5">Click the link in your email, then this page will update automatically</p>' +
-                        '</div>' +
+                
+                '<div class="mb-8">' +
+                    '<div class="flex justify-center gap-2 mb-6" id="otp-container">' +
+                        '<input type="text" maxlength="1" class="otp-input w-12 h-14 text-center text-2xl font-bold bg-white/5 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-purple-500 outline-none transition-all">' +
+                        '<input type="text" maxlength="1" class="otp-input w-12 h-14 text-center text-2xl font-bold bg-white/5 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-purple-500 outline-none transition-all">' +
+                        '<input type="text" maxlength="1" class="otp-input w-12 h-14 text-center text-2xl font-bold bg-white/5 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-purple-500 outline-none transition-all">' +
+                        '<input type="text" maxlength="1" class="otp-input w-12 h-14 text-center text-2xl font-bold bg-white/5 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-purple-500 outline-none transition-all">' +
+                        '<input type="text" maxlength="1" class="otp-input w-12 h-14 text-center text-2xl font-bold bg-white/5 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-purple-500 outline-none transition-all">' +
+                        '<input type="text" maxlength="1" class="otp-input w-12 h-14 text-center text-2xl font-bold bg-white/5 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-purple-500 outline-none transition-all">' +
                     '</div>' +
+                    '<button onclick="verifyEnteredOTP(\'' + name.replace(/'/g, "\\'") + '\', \'' + email.replace(/'/g, "\\'") + '\', \'' + role + '\')" class="w-full bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg hover:shadow-purple-500/20 text-lg">Verify Code</button>' +
                 '</div>' +
+                
                 '<div class="space-y-3">' +
-                    '<button onclick="resendVerificationEmail()" id="resend-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-xl transition-all shadow-lg hover:shadow-purple-500/20">Resend Verification Email</button>' +
+                    '<button onclick="resendVerificationEmail(\'' + email.replace(/'/g, "\\'") + '\')" id="resend-btn" class="w-full border border-purple-500/30 text-purple-400 hover:bg-purple-500/10 font-medium py-3 rounded-xl transition-all">Resend Code</button>' +
                     '<button onclick="cancelVerification()" class="w-full border border-white/20 text-gray-400 hover:text-white hover:border-white/40 font-medium py-3 rounded-xl transition-all">Back to Sign Up</button>' +
                 '</div>' +
                 '<p class="text-gray-500 text-xs mt-6">Check your spam/junk folder if you don\'t see the email</p>' +
@@ -385,63 +418,78 @@ function showVerificationScreen(user, name, email, role) {
 
     // Store pending signup data
     localStorage.setItem('pendingSignup', JSON.stringify({ name: name, email: email, role: role }));
-
-    // Start polling for verification
-    startVerificationPolling(user, name, email, role);
+    setupOTPInputs();
 }
 
-function startVerificationPolling(user, name, email, role) {
-    if (verificationPollTimer) clearInterval(verificationPollTimer);
-    verificationPollTimer = setInterval(function() {
-        user.reload().then(function() {
-            if (user.emailVerified) {
-                clearInterval(verificationPollTimer);
-                verificationPollTimer = null;
-                // Update UI to show verified
-                var statusText = document.getElementById('verify-status-text');
-                var spinner = document.getElementById('verify-spinner');
-                if (statusText) statusText.textContent = 'Email verified! Redirecting...';
-                if (statusText) statusText.className = 'text-green-400 font-medium text-sm';
-                if (spinner) spinner.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
-                if (spinner) spinner.className = 'flex-shrink-0';
-                showToast('Email verified successfully!', 'success');
-                // Save user to Firebase DB and redirect
-                saveUserToFirebase({ name: name, email: email, role: role, picture: '', signupMethod: 'email', emailVerified: true }).then(function() {
-                    localStorage.removeItem('pendingSignup');
-                    state.currentUser = { name: name, email: email, role: role };
-                    redirectToDashboard(name, email, role);
-                });
+function setupOTPInputs() {
+    var inputs = document.querySelectorAll('.otp-input');
+    inputs.forEach(function(input, index) {
+        // Auto focus next input
+        input.addEventListener('input', function(e) {
+            if (e.target.value.length === 1 && index < inputs.length - 1) {
+                inputs[index + 1].focus();
             }
-        }).catch(function() {
-            // Token may have expired, try to get fresh token
-            console.log('Verification poll: reload failed, will retry...');
         });
-    }, 3000); // Check every 3 seconds
+        // Backspace to previous input
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                inputs[index - 1].focus();
+            }
+        });
+    });
+    // Focus first input automatically
+    if(inputs.length > 0) setTimeout(function() { inputs[0].focus(); }, 100);
 }
 
-function resendVerificationEmail() {
-    var user = firebase.auth().currentUser;
+function verifyEnteredOTP(name, email, role) {
+    var inputs = document.querySelectorAll('.otp-input');
+    var enteredCode = '';
+    inputs.forEach(function(i) { enteredCode += i.value; });
+
+    var expectedCode = localStorage.getItem('currentOTP');
+
+    if (enteredCode.length < 6) {
+        showToast('Please enter the full 6-digit code.', 'error');
+        return;
+    }
+
+    if (enteredCode === expectedCode) {
+        // Successful verification
+        showToast('Email verified successfully!', 'success');
+        localStorage.removeItem('currentOTP');
+        localStorage.removeItem('pendingSignup');
+        
+        // Save user to Firebase DB and redirect
+        saveUserToFirebase({ name: name, email: email, role: role, picture: '', signupMethod: 'email', emailVerified: true }).then(function() {
+            state.currentUser = { name: name, email: email, role: role };
+            redirectToDashboard(name, email, role);
+        });
+    } else {
+        // Failed verification
+        showToast('Invalid verification code. Please try again.', 'error');
+        inputs.forEach(function(i) { i.value = ''; });
+        if(inputs.length > 0) inputs[0].focus();
+    }
+}
+
+function resendVerificationEmail(email) {
     var btn = document.getElementById('resend-btn');
-    if (!user) { showToast('Session expired. Please sign up again.', 'error'); return; }
     if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
-    user.sendEmailVerification().then(function() {
-        showToast('Verification email sent! Check your inbox.', 'success');
-        if (btn) { btn.disabled = false; btn.textContent = 'Resend Verification Email'; }
-    }).catch(function(e) {
-        if (e.code === 'auth/too-many-requests') {
-            showToast('Too many requests. Please wait a moment before trying again.', 'warning');
-        } else {
-            showToast('Failed to send email: ' + e.message, 'error');
-        }
-        if (btn) { btn.disabled = false; btn.textContent = 'Resend Verification Email'; }
-    });
+    
+    // Generate new code
+    generateAndSendOTP(email);
+    
+    showToast('New code sent! Check your inbox.', 'success');
+    
+    setTimeout(function() {
+        if (btn) { btn.disabled = false; btn.textContent = 'Resend Code'; }
+    }, 2000);
 }
 
 function cancelVerification() {
-    if (verificationPollTimer) { clearInterval(verificationPollTimer); verificationPollTimer = null; }
-    // Sign out the unverified user
     firebase.auth().signOut().catch(function(){});
     localStorage.removeItem('pendingSignup');
+    localStorage.removeItem('currentOTP');
     navigateTo('signup');
 }
 
@@ -460,65 +508,41 @@ function handleAuth(event, type) {
         firebase.auth().signInWithEmailAndPassword(email, password).then(function (cred) {
             var user = cred.user;
 
-            // CHECK EMAIL VERIFICATION
-            if (!user.emailVerified) {
-                // User hasn't verified email yet — show verification screen
-                var pending = localStorage.getItem('pendingSignup');
-                var pendName = name, pendRole = role;
-                if (pending) {
-                    try { var pData = JSON.parse(pending); if (pData.email === email) { pendName = pData.name; pendRole = pData.role; } } catch(e) {}
-                }
-                // Check DB for user info using individual lookups
-                lookupUserRole(email).then(function(result) {
-                    if (result) { pendName = result.user.name; pendRole = result.role; }
-                    showToast('Please verify your email before logging in. Check your inbox!', 'warning');
-                    user.sendEmailVerification().catch(function(){});
-                    showVerificationScreen(user, pendName, email, pendRole);
-                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Sign In'; }
-                }).catch(function() {
-                    showToast('Please verify your email before logging in. Check your inbox!', 'warning');
-                    user.sendEmailVerification().catch(function(){});
-                    showVerificationScreen(user, pendName, email, pendRole);
-                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Sign In'; }
-                });
-                return;
-            }
-
-            // Email is verified — proceed with login
-            var safeKey = email.replace(/[.#$\[\]]/g, '_');
-            var db = firebase.database();
+            // Check our custom Database-level OTP Verification
             lookupUserRole(email).then(function(result) {
-                if (result) {
-                    // User found in DB — login and redirect to correct dashboard
-                    var foundUser = result.user;
-                    var foundRole = result.role;
-                    var rf = foundRole === 'Founder' ? 'founders' : foundRole === 'Job Seeker' ? 'jobseekers' : 'investors';
-                    db.ref('users/' + rf + '/' + safeKey).update({ lastLogin: new Date().toISOString(), emailVerified: true });
-                    state.currentUser = { name: foundUser.name, email: foundUser.email, role: foundRole };
-                    showToast('Welcome back, ' + foundUser.name + '!', 'success');
-                    redirectToDashboard(foundUser.name, foundUser.email, foundRole);
-                } else {
-                    // User in Auth but not in DB — check pendingSignup for role info
+                var isVerifiedInDB = result ? result.user.emailVerified : false;
+
+                if (!isVerifiedInDB) {
+                    // User hasn't verified OTP yet
                     var pending = localStorage.getItem('pendingSignup');
-                    var pendName = user.displayName || name, pendRole = null;
+                    var pendName = name, pendRole = role;
                     if (pending) {
                         try { var pData = JSON.parse(pending); if (pData.email === email) { pendName = pData.name; pendRole = pData.role; } } catch(e) {}
                     }
-                    if (pendRole) {
-                        // We know the role from pending signup data
-                        saveUserToFirebase({ name: pendName, email: email, role: pendRole, picture: '', signupMethod: 'email', emailVerified: true }).then(function() {
-                            localStorage.removeItem('pendingSignup');
-                            state.currentUser = { name: pendName, email: email, role: pendRole };
-                            showToast('Welcome, ' + pendName + '!', 'success');
-                            redirectToDashboard(pendName, email, pendRole);
-                        });
-                    } else {
-                        // No role info available — show role selection
-                        showToast('Please select your role to continue.', 'info');
-                        showLoginRoleSelection(pendName, email);
-                        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Sign In'; }
-                    }
+                    if (result) { pendName = result.user.name; pendRole = result.role; }
+                    
+                    showToast('Please verify your email before logging in.', 'warning');
+                    
+                    // Send OTP and show screen
+                    generateAndSendOTP(email);
+                    showVerificationScreen(user, pendName, email, pendRole);
+                    
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Sign In'; }
+                    return;
                 }
+
+                // Email is verified — proceed with login
+                var safeKey = email.replace(/[.#$\[\]]/g, '_');
+                var db = firebase.database();
+                var foundUser = result.user;
+                var foundRole = result.role;
+                var rf = foundRole === 'Founder' ? 'founders' : foundRole === 'Job Seeker' ? 'jobseekers' : 'investors';
+                
+                db.ref('users/' + rf + '/' + safeKey).update({ lastLogin: new Date().toISOString(), emailVerified: true });
+                state.currentUser = { name: foundUser.name, email: foundUser.email, role: foundRole };
+                showToast('Welcome back, ' + foundUser.name + '!', 'success');
+                redirectToDashboard(foundUser.name, foundUser.email, foundRole);
+                
             }).catch(function(err) {
                 console.error('Role lookup failed:', err);
                 showToast('Login failed. Could not retrieve your data. Please try again.', 'error');
@@ -548,17 +572,11 @@ function handleAuth(event, type) {
         var user = cred.user;
         user.updateProfile({ displayName: name }).catch(function () {});
 
-        // Send email verification
-        user.sendEmailVerification().then(function() {
-            showToast('Verification email sent! Check your inbox.', 'success');
-            // Show verification waiting screen
-            showVerificationScreen(user, name, email, role);
-        }).catch(function(e) {
-            console.error('Failed to send verification email:', e);
-            // Still show verification screen — user can resend
-            showToast('Account created! Please verify your email.', 'info');
-            showVerificationScreen(user, name, email, role);
-        });
+        // Send OTP instead of Firebase's native email link
+        showToast('Verification code sent! Check your inbox.', 'success');
+        generateAndSendOTP(email);
+        showVerificationScreen(user, name, email, role);
+
     }).catch(function (e) {
         var msg = 'Registration failed. ';
         if (e.code === 'auth/email-already-in-use') msg += 'Email already registered. Please login instead.';
@@ -896,6 +914,7 @@ function selectRoleCard(el, role) {
     cards.forEach(function(c) { c.className = 'role-card cursor-pointer border-2 border-gray-200 rounded-xl p-3 text-center transition-all hover:shadow-md'; });
     el.className = 'role-card cursor-pointer border-2 ' + colors[role] + ' rounded-xl p-3 text-center transition-all hover:shadow-md';
 }
+
 function FounderDashboard() {
     var tab = state.founderTab;
     return '<div class="max-w-7xl mx-auto px-4 py-8"><div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4"><div><h1 class="text-3xl font-bold">Welcome, Founder ' + state.currentUser.name + '!</h1></div><button onclick="setFounderTab(\'post\')" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium flex items-center hover:bg-blue-700 transition-all"><i data-lucide="plus-circle" class="mr-2"></i> Post Idea</button></div>' +
@@ -957,10 +976,7 @@ function render() {
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
-    // Scroll reveal observer
     initScrollReveal();
-
-    // Navbar scroll effect
     initNavScroll();
 }
 
@@ -1004,44 +1020,21 @@ window.onload = function () {
     render();
     setTimeout(initGoogleSignIn, 500);
 
-    // Check if there's a pending signup verification
-    var pending = localStorage.getItem('pendingSignup');
-    if (pending) {
-        try {
-            var pData = JSON.parse(pending);
-            var currentUser = firebase.auth().currentUser;
-            if (currentUser && currentUser.email === pData.email) {
-                if (currentUser.emailVerified) {
-                    // Already verified — save to DB and redirect
-                    saveUserToFirebase({ name: pData.name, email: pData.email, role: pData.role, picture: '', signupMethod: 'email', emailVerified: true }).then(function() {
-                        localStorage.removeItem('pendingSignup');
-                        state.currentUser = { name: pData.name, email: pData.email, role: pData.role };
-                        showToast('Email verified! Welcome to Foundera!', 'success');
-                        redirectToDashboard(pData.name, pData.email, pData.role);
-                    });
-                } else {
-                    // Not yet verified — show verification screen
-                    showVerificationScreen(currentUser, pData.name, pData.email, pData.role);
-                }
-            }
-        } catch(e) { localStorage.removeItem('pendingSignup'); }
-    }
-
-    // Listen for auth state changes (handles returning after verification via link)
+    // Listen for auth state changes 
     firebase.auth().onAuthStateChanged(function(user) {
-        if (user && user.emailVerified) {
+        if (user) {
+            // Check if user is stuck in pending state without verified DB flag
             var pendingData = localStorage.getItem('pendingSignup');
-            if (pendingData) {
+            if (pendingData && state.currentScreen !== 'verify') {
                 try {
                     var pd = JSON.parse(pendingData);
                     if (pd.email === user.email) {
-                        // User just verified — complete signup
-                        if (verificationPollTimer) { clearInterval(verificationPollTimer); verificationPollTimer = null; }
-                        saveUserToFirebase({ name: pd.name, email: pd.email, role: pd.role, picture: '', signupMethod: 'email', emailVerified: true }).then(function() {
-                            localStorage.removeItem('pendingSignup');
-                            state.currentUser = { name: pd.name, email: pd.email, role: pd.role };
-                            showToast('Email verified! Welcome to Foundera!', 'success');
-                            redirectToDashboard(pd.name, pd.email, pd.role);
+                        lookupUserRole(user.email).then(function(res) {
+                            if (!res || !res.user.emailVerified) {
+                                showVerificationScreen(user, pd.name, pd.email, pd.role);
+                            } else {
+                                localStorage.removeItem('pendingSignup');
+                            }
                         });
                     }
                 } catch(e) {}
