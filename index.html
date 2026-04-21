@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Foundera - Startup Ecosystem</title>
+    <link rel="icon" type="image/jpeg" href="images/founderaLogo.jpeg">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Sign-In -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/common.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics-compat.js"></script>
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyD3TUXLt1wvQG3vtR3IRV7SkUQ30wdFg_c",
+            authDomain: "foundera-6b9c3.firebaseapp.com",
+            databaseURL: "https://foundera-6b9c3-default-rtdb.firebaseio.com",
+            projectId: "foundera-6b9c3",
+            storageBucket: "foundera-6b9c3.firebasestorage.app",
+            messagingSenderId: "620809869635",
+            appId: "1:620809869635:web:73098803175365ea8af7f6",
+            measurementId: "G-XKMM3285ZY"
+        };
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        firebase.analytics();
+        const database = firebase.database();
+        const auth = firebase.auth();
+    </script>
+</head>
+<body class="bg-[#1a0b2e] text-gray-900">
+
+    <!-- Preloader -->
+    <div id="foundera-preloader">
+        <div class="preloader-glow"></div>
+        <img src="images/founderaLogo.jpeg" alt="Foundera" class="preloader-logo">
+        <div class="preloader-text">Foundera</div>
+        <div class="preloader-bar-container"><div class="preloader-bar"></div></div>
+    </div>
+
+    <div id="navbar-root"></div>
+    <div id="app-root"></div>
+    <div id="footer-root"></div>
+
+    <script src="js/home.js"></script>
+    <script src="js/preloader.js"></script>
+</body>
+</html>
