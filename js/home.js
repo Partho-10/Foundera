@@ -264,7 +264,9 @@ function handleLogout() {
     localStorage.removeItem('investorName');
     localStorage.removeItem('investorEmail');
     localStorage.removeItem('pendingSignup');
+    localStorage.removeItem('pendingSignupData'); // Clear new memory
     localStorage.removeItem('currentOTP');
+    if (otpTimerInterval) clearInterval(otpTimerInterval);
     navigateTo('home');
 }
 
@@ -345,6 +347,46 @@ function lookupUserRole(email) {
     });
 }
 
+/* --- OTP TIMER LOGIC --- */
+var otpTimerInterval = null;
+
+function startOTPTimer(duration) {
+    var timerDisplay = document.getElementById('otp-countdown');
+    var timerText = document.getElementById('otp-timer-text');
+    var resendBtn = document.getElementById('resend-btn');
+    var verifyBtn = document.getElementById('verify-otp-btn');
+    
+    if (otpTimerInterval) clearInterval(otpTimerInterval);
+    
+    if (resendBtn) { resendBtn.disabled = true; }
+    if (verifyBtn) { verifyBtn.disabled = false; }
+    
+    // Reset timer UI if it was previously expired
+    if (timerText) { 
+        timerText.innerHTML = 'Time remaining: <span id="otp-countdown" class="text-purple-400 font-bold"></span>'; 
+        timerDisplay = document.getElementById('otp-countdown'); 
+    }
+
+    var timer = duration, minutes, seconds;
+    otpTimerInterval = setInterval(function () {
+        minutes = parseInt(timer / 60, 10);
+        seconds = parseInt(timer % 60, 10);
+
+        minutes = minutes < 10 ? "0" + minutes : minutes;
+        seconds = seconds < 10 ? "0" + seconds : seconds;
+
+        if (timerDisplay) timerDisplay.textContent = minutes + ":" + seconds;
+
+        if (--timer < 0) {
+            clearInterval(otpTimerInterval);
+            if (timerText) timerText.innerHTML = '<span class="text-red-400 font-medium">Code expired. Please resend.</span>';
+            if (resendBtn) { resendBtn.disabled = false; }
+            if (verifyBtn) { verifyBtn.disabled = true; }
+            localStorage.removeItem('currentOTP'); // Expire the code in memory
+        }
+    }, 1000);
+}
+
 /* --- OTP EMAIL VERIFICATION --- */
 function generateAndSendOTP(email) {
     // Generate a random 6-digit code
@@ -353,14 +395,13 @@ function generateAndSendOTP(email) {
 
     // EmailJS er maddhome ashol email pathano
     if (typeof emailjs !== 'undefined') {
-        
         var serviceID = 'service_w6km8fi';   
         var templateID = 'template_j9jkke8';   
         var publicKey = 'pt1nWPB5tv9JSX76w';
 
         var templateParams = {
-            to_email: email, // User er email jekhane OTP jabe
-            otp_code: otp    // 6-digit OTP code
+            to_email: email, 
+            otp_code: otp    
         };
 
         emailjs.send(serviceID, templateID, templateParams, publicKey)
@@ -372,9 +413,6 @@ function generateAndSendOTP(email) {
     } else {
         console.error("EmailJS script is missing in index.html");
     }
-
-    // Testing er shubidhar jonno browser console e OTP log kora holo (Pop-up baad deya hoyeche)
-    console.log('Secret OTP for testing: ' + otp);
 
     return otp;
 }
@@ -394,7 +432,8 @@ function showVerificationScreen(user, name, email, role) {
                 '</div>' +
                 '<h2 class="text-3xl font-bold text-white mb-3">Verify Your Email</h2>' +
                 '<p class="text-gray-400 mb-2">We\'ve sent a 6-digit code to:</p>' +
-                '<p class="text-purple-400 font-semibold text-lg mb-6">' + email + '</p>' +
+                '<p class="text-purple-400 font-semibold text-lg mb-2">' + email + '</p>' +
+                '<p id="otp-timer-text" class="text-gray-400 text-sm mb-6">Time remaining: <span id="otp-countdown" class="text-purple-400 font-bold">02:00</span></p>' +
                 
                 '<div class="mb-8">' +
                     '<div class="flex justify-center gap-2 mb-6" id="otp-container">' +
@@ -405,11 +444,11 @@ function showVerificationScreen(user, name, email, role) {
                         '<input type="text" maxlength="1" class="otp-input w-12 h-14 text-center text-2xl font-bold bg-white/5 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-purple-500 outline-none transition-all">' +
                         '<input type="text" maxlength="1" class="otp-input w-12 h-14 text-center text-2xl font-bold bg-white/5 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-purple-500 outline-none transition-all">' +
                     '</div>' +
-                    '<button onclick="verifyEnteredOTP(\'' + name.replace(/'/g, "\\'") + '\', \'' + email.replace(/'/g, "\\'") + '\', \'' + role + '\')" class="w-full bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg hover:shadow-purple-500/20 text-lg">Verify Code</button>' +
+                    '<button id="verify-otp-btn" onclick="verifyEnteredOTP(\'' + name.replace(/'/g, "\\'") + '\', \'' + email.replace(/'/g, "\\'") + '\', \'' + role + '\')" class="w-full bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg hover:shadow-purple-500/20 text-lg disabled:opacity-50 disabled:cursor-not-allowed">Verify Code</button>' +
                 '</div>' +
                 
                 '<div class="space-y-3">' +
-                    '<button onclick="resendVerificationEmail(\'' + email.replace(/'/g, "\\'") + '\')" id="resend-btn" class="w-full border border-purple-500/30 text-purple-400 hover:bg-purple-500/10 font-medium py-3 rounded-xl transition-all">Resend Code</button>' +
+                    '<button onclick="resendVerificationEmail(\'' + email.replace(/'/g, "\\'") + '\')" id="resend-btn" disabled class="w-full border border-purple-500/30 text-purple-400 hover:bg-purple-500/10 font-medium py-3 rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed">Resend Code</button>' +
                     '<button onclick="cancelVerification()" class="w-full border border-white/20 text-gray-400 hover:text-white hover:border-white/40 font-medium py-3 rounded-xl transition-all">Back to Sign Up</button>' +
                 '</div>' +
                 '<p class="text-gray-500 text-xs mt-6">Check your spam/junk folder if you don\'t see the email</p>' +
@@ -419,6 +458,9 @@ function showVerificationScreen(user, name, email, role) {
     // Store pending signup data
     localStorage.setItem('pendingSignup', JSON.stringify({ name: name, email: email, role: role }));
     setupOTPInputs();
+    
+    // Start 2-minute countdown timer (120 seconds)
+    startOTPTimer(120);
 }
 
 function setupOTPInputs() {
@@ -453,20 +495,57 @@ function verifyEnteredOTP(name, email, role) {
         return;
     }
 
-    if (enteredCode === expectedCode) {
-        // Successful verification
-        showToast('Email verified successfully!', 'success');
-        localStorage.removeItem('currentOTP');
-        localStorage.removeItem('pendingSignup');
+    if (enteredCode === expectedCode && expectedCode != null) {
+        if (otpTimerInterval) clearInterval(otpTimerInterval);
         
-        // Save user to Firebase DB and redirect
-        saveUserToFirebase({ name: name, email: email, role: role, picture: '', signupMethod: 'email', emailVerified: true }).then(function() {
-            state.currentUser = { name: name, email: email, role: role };
-            redirectToDashboard(name, email, role);
+        var verifyBtn = document.getElementById('verify-otp-btn');
+        if (verifyBtn) { verifyBtn.disabled = true; verifyBtn.textContent = 'Verifying...'; }
+
+        // Get saved password from local storage
+        var pDataStr = localStorage.getItem('pendingSignupData');
+        var pData = pDataStr ? JSON.parse(pDataStr) : null;
+        var password = pData ? pData.password : 'TempPass123!';
+
+        // Function to finalize and save to DB
+        var finalize = function() {
+            localStorage.removeItem('currentOTP');
+            localStorage.removeItem('pendingSignup');
+            localStorage.removeItem('pendingSignupData');
+            
+            saveUserToFirebase({ name: name, email: email, role: role, picture: '', signupMethod: 'email', emailVerified: true }).then(function() {
+                state.currentUser = { name: name, email: email, role: role };
+                showToast('Email verified successfully! Welcome to Foundera.', 'success');
+                redirectToDashboard(name, email, role);
+            });
+        };
+
+        // --- NEW FIX: Try to create Firebase Auth account ONLY after OTP is verified ---
+        firebase.auth().createUserWithEmailAndPassword(email, password).then(function(cred) {
+            var user = cred.user;
+            user.updateProfile({ displayName: name }).catch(function(){});
+            finalize();
+        }).catch(function(e) {
+            // Handle case if they had a previous unverified account in Firebase
+            if (e.code === 'auth/email-already-in-use') {
+                firebase.auth().signInWithEmailAndPassword(email, password).then(function() {
+                    finalize();
+                }).catch(function() {
+                    showToast('This email has an old account with a different password. Please reset password from Login page.', 'error');
+                    if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.textContent = 'Verify Code'; }
+                    inputs.forEach(function(i) { i.value = ''; });
+                    if(inputs.length > 0) inputs[0].focus();
+                });
+            } else {
+                showToast(e.message, 'error');
+                if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.textContent = 'Verify Code'; }
+            }
         });
     } else {
-        // Failed verification
-        showToast('Invalid verification code. Please try again.', 'error');
+        if (!expectedCode) {
+            showToast('Code expired. Please resend.', 'error');
+        } else {
+            showToast('Invalid verification code. Please try again.', 'error');
+        }
         inputs.forEach(function(i) { i.value = ''; });
         if(inputs.length > 0) inputs[0].focus();
     }
@@ -481,14 +560,16 @@ function resendVerificationEmail(email) {
     
     showToast('New code sent! Check your inbox.', 'success');
     
-    setTimeout(function() {
-        if (btn) { btn.disabled = false; btn.textContent = 'Resend Code'; }
-    }, 2000);
+    // Restart the 2-minute timer
+    startOTPTimer(120); 
+    if (btn) { btn.textContent = 'Resend Code'; } 
 }
 
 function cancelVerification() {
+    if (otpTimerInterval) clearInterval(otpTimerInterval);
     firebase.auth().signOut().catch(function(){});
     localStorage.removeItem('pendingSignup');
+    localStorage.removeItem('pendingSignupData'); // Clear stored temp data
     localStorage.removeItem('currentOTP');
     navigateTo('signup');
 }
@@ -523,6 +604,11 @@ function handleAuth(event, type) {
                     
                     showToast('Please verify your email before logging in.', 'warning');
                     
+                    // We need to store password so verifyEnteredOTP can sign them in!
+                    localStorage.setItem('pendingSignupData', JSON.stringify({
+                        name: pendName, email: email, password: password, role: pendRole
+                    }));
+
                     // Send OTP and show screen
                     generateAndSendOTP(email);
                     showVerificationScreen(user, pendName, email, pendRole);
@@ -568,22 +654,26 @@ function handleAuth(event, type) {
         return;
     }
 
-    firebase.auth().createUserWithEmailAndPassword(email, password).then(function (cred) {
-        var user = cred.user;
-        user.updateProfile({ displayName: name }).catch(function () {});
+    // --- NEW FIX: Delay Firebase Auth Creation Until OTP Verification ---
+    // Prothome DB check korbo je verified account ache kina
+    lookupUserRole(email).then(function(result) {
+        if (result && result.user.emailVerified) {
+            showToast('Email already registered. Please login instead.', 'error');
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Create Account'; }
+            return;
+        }
 
-        // Send OTP instead of Firebase's native email link
+        // Email verified na, ba account nei. Amra OTP pathabo kintu Firebase e ekhoni account toiri korbo na
+        localStorage.setItem('pendingSignupData', JSON.stringify({
+            name: name, email: email, password: password, role: role
+        }));
+
         showToast('Verification code sent! Check your inbox.', 'success');
         generateAndSendOTP(email);
-        showVerificationScreen(user, name, email, role);
-
-    }).catch(function (e) {
-        var msg = 'Registration failed. ';
-        if (e.code === 'auth/email-already-in-use') msg += 'Email already registered. Please login instead.';
-        else if (e.code === 'auth/weak-password') msg += 'Password must be at least 6 characters.';
-        else if (e.code === 'auth/invalid-email') msg += 'Invalid email format.';
-        else msg += e.message;
-        showToast(msg, 'error');
+        showVerificationScreen(null, name, email, role);
+        
+    }).catch(function(err) {
+        showToast('Something went wrong. Please try again.', 'error');
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Create Account'; }
     });
 }
